@@ -27,16 +27,33 @@ describe('transaction', function(){
     this.client.end();
   });
 
-  it('#commit - should exist in the database', function(done){
-    var tx = new Transaction(this.client);
-    tx.begin();
-    tx.query("INSERT INTO beatles(name, height, birthday) values($1, $2, $3)", ['Ringo', 67, new Date(1945, 11, 2)]);
-    tx.query("INSERT INTO beatles(name, height, birthday) values($1, $2, $3)", ['John', 68, new Date(1944, 10, 13)]);
-    tx.commit();
-    this.client.query("SELECT * FROM beatles", function(err, result){
-      if (err) throw err;
-      result.rows.should.have.length(2);
-      done();
+  describe('#commit -', function () {
+    it('should exist in the database', function(done){
+      var tx = new Transaction(this.client);
+      tx.begin();
+      tx.query("INSERT INTO beatles(name, height, birthday) values($1, $2, $3)", ['Ringo', 67, new Date(1945, 11, 2)]);
+      tx.query("INSERT INTO beatles(name, height, birthday) values($1, $2, $3)", ['John', 68, new Date(1944, 10, 13)]);
+      tx.commit();
+      this.client.query("SELECT * FROM beatles", function(err, result){
+        if (err) throw err;
+        result.rows.should.have.length(2);
+        done();
+      });
+    });
+    it('should send a end event', function(done){
+      var tx = new Transaction(this.client);
+      tx.begin();
+      tx.query("INSERT INTO beatles(name, height, birthday) values($1, $2, $3)", ['Ringo', 67, new Date(1945, 11, 2)]);
+      tx.query("INSERT INTO beatles(name, height, birthday) values($1, $2, $3)", ['John', 68, new Date(1944, 10, 13)]);
+      tx.commit();
+      tx.on('end', function(commited) {
+        commited.should.be.ok;
+        this.client.query("SELECT * FROM beatles", function(err, result){
+          if (err) throw err;
+          result.rows.should.have.length(2);
+          done();
+        });
+      })
     });
   });
 
@@ -51,6 +68,21 @@ describe('transaction', function(){
         if (err) throw err;
         result.rows.should.have.length(0);
         done();
+      });
+    });
+    it('should send a end event', function(done){
+      var tx = new Transaction(this.client);
+      tx.begin();
+      tx.query("INSERT INTO beatles(name, height, birthday) values($1, $2, $3)", ['Ringo', 67, new Date(1945, 11, 2)]);
+      tx.query("INSERT INTO beatles(name, height, birthday) values($1, $2, $3)", ['John', 68, new Date(1944, 10, 13)]);
+      tx.rollback();
+      tx.on('end', function(commited) {
+        commited.should.equal(false)
+        this.client.query("SELECT * FROM beatles WHERE name = $1", ['John'], function(err, result){
+          if (err) throw err;
+          result.rows.should.have.length(0);
+          done();
+        });
       });
     });
     it('calls the callback when used with arity 1', function(done) {
